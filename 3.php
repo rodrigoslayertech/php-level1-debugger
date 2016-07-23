@@ -18,10 +18,9 @@ class Debug
    // Output
    public static $tag; // string
    public static $print = true; // bool
-   //public static $file = false;
    private $Output;
 
-   public function __Construct(...$vars){ // PHP 5.6+ (variadic functions)
+   public function __Construct(...$vars){
       if(self::$debug && ($_SERVER['REMOTE_ADDR'] == '127.0.0.1' or $_SERVER['REMOTE_ADDR'] == '::1') ){
          // Limit
          if(self::$limit === null)
@@ -122,12 +121,12 @@ class Debug
             } break;
          case 'object':
             $prefix = "<b>object</b>".'('.get_class($var).') ';
-            $color = '';
+            $color = 'black';
             $var = '';
             break;
          case 'resource':
-            $prefix = '';
-            $color = ''; break;
+            $prefix = '<b>resource</b>';
+            $color = 'black'; break;
          case 'NULL':
             $prefix = '';
             $color = '#3465a4';
@@ -138,8 +137,9 @@ class Debug
                $color = '';
             }
             else{
-               $prefix = '';
-               $color = '';
+               $prefix = 'Unknown type';
+               $color = 'black';
+					$var = '?';
             }
       }
 
