@@ -161,10 +161,3 @@ class Debug
       $this->Output .= "<style>pre{-moz-tab-size: 1; tab-size: 1;}</style>";
    }
 }
-
-function Debug(...$vars){
-	$trace = debug_backtrace();
-	\Debug::$trace = $trace[0];
-	new \Debug(...$vars);
-	\Debug::$trace = null;
-}
