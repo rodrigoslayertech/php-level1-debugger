@@ -10,7 +10,7 @@ class Debug
    public static $limit; // int
    public static $search; // string
       // Data
-   private static $count = 1; // int
+   public static $count = 1; // int
 
    // Trace
    public static $trace;
