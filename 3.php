@@ -2,8 +2,13 @@
 class Debug
 {
    public static $debug = true;
-   public static $backtrace = true;
+   public static $print = true;
    public static $exit = true;
+
+   public static $title; // string
+   public static $trace; // array
+   public static $vars; // array
+      public static $labels; // array
 
    // Call
       // Configs
@@ -12,16 +17,14 @@ class Debug
       // Data
    private static $count = 1; // int
 
-   // Trace
-   public static $trace;
-
    // Output
-   public static $tag; // string
-   public static $print = true; // bool
    private $Output;
 
    public function __Construct(...$vars){
       if(self::$debug && ($_SERVER['REMOTE_ADDR'] == '127.0.0.1' or $_SERVER['REMOTE_ADDR'] == '::1') ){
+         if(empty($vars) && self::$vars)
+            $vars = self::$vars;
+
          // Limit
          if(self::$limit === null)
             $limit = self::$count;
@@ -29,17 +32,15 @@ class Debug
             $limit = self::$limit;
          // Search
          if(self::$search === null)
-            $search = self::$tag;
+            $search = self::$title;
          else
             $search = self::$search;
 
          // Catch
-         if(self::$count >= $limit && $search == self::$tag){
-            if(self::$backtrace){
-               if(!self::$trace){
-                  $trace = debug_backtrace();
-                  self::$trace = $trace[0];
-               }
+         if(self::$count >= $limit && $search == self::$title){
+            if(!self::$trace){
+               $trace = debug_backtrace();
+               self::$trace = $trace[0];
             }
 
             $this->Generate($vars);
@@ -47,15 +48,14 @@ class Debug
             if(self::$print)
                print $this->Output;
 
-            if(self::$backtrace)
-               self::$trace = null;
+            self::$trace = null;
 
             if(self::$exit)
                exit;
          }
 
          if(self::$limit && self::$search){
-            if($search == self::$tag){
+            if($search == self::$title){
                self::$count++;
             }
          }
@@ -65,37 +65,43 @@ class Debug
       }
    }
 
+   public static function Input(...$vars){
+      self::$vars = $vars;
+   }
+
    public static function Reset(){
       self::$count = 1;
       self::$limit = null;
       self::$search = null;
-      self::$tag = null;
+      self::$title = null;
+      self::$labels = null;
    }
 
-   public static function Dump($var){
-      switch( gettype($var) ){
+   public static function Dump($value){
+      switch( gettype($value) ){
          case 'boolean':
             $prefix = "<small>boolean</small> ";
             $color = '#75507b';
-            if($var)
+            if($value)
                $var = 'true';
             else
                $var = 'false'; break;
          case 'integer':
             $prefix = "<small>int</small> ";
-            $color = '#4e9a06'; break;
+            $color = '#4e9a06';
+            $var = $value; break;
          case 'double': // float
             $prefix = "<small>float</small> ";
             $color = "#f57900";
-            break;
+            $var = $value; break;
          case 'string':
-            $prefix = "<small>string</small> ".'(length='.strlen($var).') ';
+            $prefix = "<small>string</small> ".'(length='.strlen($value).') ';
             $color = '#cc0000';
-            $var = "'".$var."'"; break;
+            $var = "'".$value."'"; break;
          case 'array':
-            $prefix = "<b>array</b>".' (size='.count($var).") ";
+            $prefix = "<b>array</b>".' (size='.count($value).") ";
             $color = '';
-            $array = $var;
+            $array = $value;
             $identity = "\t\t\t";
 
             $var = '';
@@ -120,26 +126,28 @@ class Debug
                $var .= "\n".$identity.$key.' => '.$value;
             } break;
          case 'object':
-            $prefix = "<b>object</b>".'('.get_class($var).') ';
-            $color = 'black';
+            $prefix = "<b>object</b>".'('.get_class($value).') ';
+            $color = '';
             $var = '';
             break;
          case 'resource':
-            $prefix = '<b>resource</b>';
-            $color = 'black'; break;
+            $prefix = '';
+            $color = '';
+				$var = ''; break;
          case 'NULL':
             $prefix = '';
             $color = '#3465a4';
             $var = 'null'; break;
          default:
-            if( is_callable($var) ){
+            if( is_callable($value) ){
                $prefix = "<small>callable</small> ";
                $color = '';
+               $var = '';
             }
             else{
                $prefix = 'Unknown type';
                $color = 'black';
-					$var = '?';
+               $var = '';
             }
       }
 
@@ -148,15 +156,19 @@ class Debug
 
    private function Generate($vars){
       $this->Output = "<pre>";
-      if(self::$tag)
-         $this->Output .= '<b>'.self::$tag.'</b>';
+      if(self::$title)
+         $this->Output .= '<b>'.self::$title.'</b>';
       $this->Output .= '<small> in call number: '.self::$count.'</small>';
       $this->Output .= "\n\n";
       if(self::$trace['file'] and self::$trace['line'])
          $this->Output .= '<small>'.self::$trace['file'].':'.self::$trace['line']."</small>\n";
       $this->Output .= "\n";
-      foreach($vars as $key => $value)
+      foreach($vars as $key => $value){
+         if(self::$labels[$key]){
+            $this->Output .= '<b style="color:#7d7d7d">'.self::$labels[$key]."</b>\n";
+         }
          $this->Output .= self::Dump($value)."\n";
+      }
       $this->Output .= "</pre>";
       $this->Output .= "<style>pre{-moz-tab-size: 1; tab-size: 1;}</style>";
    }
