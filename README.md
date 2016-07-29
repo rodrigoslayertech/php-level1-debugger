@@ -1,5 +1,5 @@
 # PHP Debug - v0.2 Alpha
-Helper for debugging/testing variables with delimiters call.
+Helper for debugging/testing variables with delimiters of call and identifiers of variables.
 
 ### Delimiters
 - \Debug::$limit
