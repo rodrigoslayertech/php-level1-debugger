@@ -1,6 +1,8 @@
 # PHP Debug - v0.2 Alpha
 Helper for debugging/testing variables with delimiters of call and identifiers of variables.
 
+## Overview
+
 ### Delimiters
 - \Debug::$limit
 - \Debug::$search
@@ -9,5 +11,5 @@ Helper for debugging/testing variables with delimiters of call and identifiers o
 - \Debug::$title (call)
 - \Debug::$labels ($vars)
 
-### Requirements
+## Requirements
 - PHP 5.6+
