@@ -3,6 +3,9 @@ Helper for debugging/testing variables with delimiters of call and identifiers o
 
 ## Overview
 
+### Counters
+- \Debug::$count
+
 ### Delimiters
 - \Debug::$from
 - \Debug::$to
