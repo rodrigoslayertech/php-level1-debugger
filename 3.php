@@ -1,208 +1,304 @@
 <?php
+/*
+ * --------------------------------------------------------------------------
+ * Developed by Rodrigo Vieira (@Slowaways)
+ * Copyright 2017
+ * Licensed under MIT
+ * --------------------------------------------------------------------------
+ */
 class Debug
 {
-    // @Config
+    // _
+        // _Config
     public static $debug = true;
     public static $print = true;
     public static $exit = true;
+    public static $cli = false;
 
     // Identifiers
+    public static $ips;
+    public static $call = 1; // int
     public static $title; // string
     public static $trace; // array
     public static $vars; // array
         public static $labels; // array
 
-    // Counters
-    public static $count = 1;
-
     // Delimiters
-        // Calls
+        // Call
         public static $from;
         public static $to;
         // Title
         public static $search;
+        // Stack
+        public static $stacks;
 
     // .Output
-    private $Output;
+    public static $Output;
 
-    public function __Construct(...$vars){
-        if(self::$debug){
-            // Title
-            $title = self::$title;
-            // Vars
-            if(empty($vars) and self::$vars){
-                $vars = self::$vars;
-            }
-
-            // Count
-            $count = self::$count;
-
-            // To
-            if(self::$to === null){
-                $to = self::$count;
-            }
-            else{
-                $to = self::$to;
-            }
-            // From
-            if(self::$from and (self::$from <=> self::$to) !== -1){
-                self::$from = null;
-            }
-            $from = self::$from;
-            // Search
-            if(self::$search === null){
-                $search = self::$title;
-            }
-            else{
-                $search = self::$search;
-            }
-
-            // Catch
-            if( ( ($from and $count >= $from) or $count >= $to ) and $search == $title ){
-                if( !self::$trace ){
-                    $trace = debug_backtrace();
-                    self::$trace = $trace[0];
+    public function __construct(...$vars){
+        if(self::$debug === false)
+            return;
+        if( !empty(self::$ips) ){
+            foreach(self::$ips as $ip){
+                $founded = false;
+                if($_SERVER['REMOTE_ADDR'] == $ip){
+                    $founded = true;
+                    break;
                 }
+            }
 
-                $this->Generate($vars);
+            if($founded === false)
+                return;
+        }
 
-                if(self::$print)
-                    print $this->Output;
 
-                self::$trace = null;
+        // CLI
+        if(@PHP_SAPI === 'cli'){
+            self::$cli = true;
+        }
 
-                if(self::$exit){
-                    if(self::$from == null){
+        // Title
+        $title = self::$title;
+        // Vars
+        if(empty($vars) and self::$vars){
+            $vars = self::$vars;
+        }
+
+        // Count
+        $call = self::$call;
+
+        // To
+        if(self::$to === null){
+            $to = self::$call;
+        }
+        else{
+            $to = self::$to;
+        }
+        // From
+        if(self::$from and (self::$from <=> self::$to) !== -1){
+            self::$from = null;
+        }
+        $from = self::$from;
+        // Search
+        if(self::$search === null){
+            $search = self::$title;
+        }
+        else{
+            $search = self::$search;
+        }
+
+        // Catch
+        if( ( ($from and $call >= $from) or $call >= $to ) and $search == $title ){
+            if(self::$trace !== false and self::$trace === null){
+                $trace = debug_backtrace();
+                self::$trace = $trace;
+            }
+
+            $this->generate($vars);
+
+            // Print
+            if(self::$print)
+                print self::$Output;
+
+            self::$trace = null;
+
+            if(self::$exit){
+                if(self::$from == null){
+                    exit;
+                }
+                else{
+                    if(self::$to == self::$call){
                         exit;
                     }
-                    else{
-                        if(self::$to == self::$count){
-                            exit;
-                        }
-                    }
                 }
             }
+        }
 
-            if(self::$to and self::$search){
-                if($search == self::$title){
-                    self::$count++;
-                }
+        if(self::$to and self::$search){
+            if($search == self::$title){
+                self::$call++;
             }
-            else{
-                self::$count++;
-            }
+        }
+        else{
+            self::$call++;
         }
     }
 
-	public static function Input(...$vars){
-		self::$vars = $vars;
-	}
-	public static function Reset(){
-		self::$count = 1;
-		self::$to = null;
-		self::$search = null;
-		self::$title = null;
-		self::$labels = null;
-	}
-	
-	public static function Dump($value){
-		switch( gettype($value) ){
-		case 'boolean':
-			$prefix = "<small>boolean</small> ";
-			$color = '#75507b';
+    public static function input(...$vars){
+        self::$vars = $vars;
+    }
+    public static function reset(){
+        self::$call = 1;
+        self::$from = null;
+        self::$to = null;
+        self::$search = null;
+        self::$title = null;
+        self::$labels = null;
+    }
 
-			if($value)
-				$var = 'true';
-			else
-				$var = 'false'; break;
-		case 'integer':
-			$prefix = "<small>int</small> ";
-			$color = '#4e9a06';
-			$var = $value; break;
-		case 'double': // float
-			$prefix = "<small>float</small> ";
-			$color = "#f57900";
-			$var = $value; break;
-		case 'string':
-			$prefix = "<small>string</small> ".'(length='.strlen($value).') ';
-			$color = '#cc0000';
-			$var = "'".$value."'"; break;
-		case 'array':
-			$prefix = "<b>array</b>".' (size='.count($value).") ";
-			$color = '';
-			$array = $value;
-			$identity = "\t\t\t";
+    public static function dump($value){
+        switch( gettype($value) ){
+            case 'boolean':
+                $type = 'boolean';
+                $prefix = "<small>$type</small> ";
+                $info = '';
+                $color = '#75507b';
 
-			$var = '';
-			foreach($array as $key => $value){
-				if( is_string($key) )
-					$key = "'".$key."'";
+                if($value)
+                    $var = 'true';
+                else
+                    $var = 'false'; break;
+            case 'integer':
+                $type = 'int';
+                $prefix = "<small>$type</small> ";
+                $info = '';
+                $color = '#4e9a06';
+                $var = $value; break;
+            case 'double': // float
+                $type = 'float';
+                $prefix = "<small>$type</small> ";
+                $info = '';
+                $color = "#f57900";
+                $var = $value; break;
+            case 'string':
+                $type = 'string';
+                $prefix = "<small>$type</small> ";
+                $info = '(length='.strlen($value).') ';
+                $color = '#cc0000';
+                $var = "'".$value."'"; break;
+            case 'array':
+                $type = 'array';
+                $prefix = "<b>$type</b>";
+                $info = ' (size='.count($value).") ";
+                $color = '';
+                $array = $value;
+                $identity = "\t\t\t";
 
-				if( is_array($value) ){
-					$arrayValueCount = count($value);
-					$value = "<b>array</b>".' (size='.$arrayValueCount.") ";
-					
-					if($arrayValueCount > 0){
-						$value .= "[...]";
-					}
-					else{
-						$value .= "[]";
-					}
-				}
-				else
-					$value = self::Dump($value);
+                $var = '';
+                foreach($array as $key => $value){
+                    if( is_string($key) )
+                        $key = "'".$key."'";
 
-				$var .= "\n".$identity.$key.' => '.$value;
-			} break;
-		case 'object':
-			$prefix = "<b>object</b>".'('.get_class($value).') ';
-			$color = '';
-			$var = ''; break;
-		case 'resource':
-			$prefix = '';
-			$color = ''; break;
-		case 'NULL':
-			$prefix = '';
-			$color = '#3465a4';
-			$var = 'null'; break;
-		default:
-			if( is_callable($value) ){
-				$prefix = "<small>callable</small> ";
-				$color = '';
-				$var = '';
-			}
-			else{
-				$prefix = 'Unknown type';
-				$color = 'black';
-				$var = '';
-			}
-		}
+                    if( is_array($value) ){
+                        $arrayValueCount = count($value);
+                        $value = "<b>array</b>".' (size='.$arrayValueCount.") ";
 
-		return $prefix.'<span style="color: '.$color.'">'.$var.'</span>';
-	}
-	private function Generate($vars){
-		$this->Output = "<pre>";
+                        if($arrayValueCount > 0){
+                            $value .= "[...]";
+                        }
+                        else{
+                            $value .= "[]";
+                        }
+                    }
+                    else
+                        $value = self::dump($value);
 
-		if(self::$title)
-			$this->Output .= '<b>'.self::$title.'</b>';
+                    $var .= "\n".$identity.$key.' => '.$value;
+                } break;
+            case 'object':
+                $type = 'object';
+                $prefix = "<b>$type</b>";
+                $info = '('.get_class($value).') ';
+                $color = '';
+                $var = ''; break;
+            case 'resource':
+                $type = 'resource';
+                $prefix = "<b>$type</b>";
+                $info = '('.get_resource_type($value).")";
+                $color = '';
+                $var = ''; break;
+            case 'NULL':
+                $type = '';
+                $prefix = '';
+                $info = '';
+                $color = '#3465a4';
+                $var = 'null'; break;
+            default:
+                if( is_callable($value) ){
+                    $type = 'callable';
+                    $prefix = "<small>$type</small> ";
+                    $info = '';
+                    $color = '';
+                    $var = '';
+                }
+                else{
+                    $type = 'Unknown type';
+                    $prefix = '';
+                    $info = '';
+                    $color = 'black';
+                    $var = '';
+                }
+        }
 
-		$this->Output .= '<small> in call number: '.self::$count.'</small>';
-		$this->Output .= "\n";
+        if(!self::$cli)
+            $dump = $prefix.$info.'<span style="color: '.$color.'">'.$var.'</span>';
+        else
+            $dump = $type.$info.$var;
 
-		if(self::$trace['file'] and self::$trace['line'])
-			$this->Output .= '<small>'.self::$trace['file'].':'.self::$trace['line']."</small>\n";
+        return $dump;
+    }
+    private function generate($vars){
+        self::$Output = "";
 
-		$this->Output .= "\n";
+        if(!self::$cli)
+            self::$Output = "<pre>";
 
-		foreach($vars as $key => $value){
-			if(@self::$labels[$key]){
-				$this->Output .= '<b style="color:#7d7d7d">'.self::$labels[$key]."</b>\n";
-			}
-			$this->Output .= self::Dump($value)."\n";
-		}
+        if(self::$title){
+            if(!self::$cli)
+                self::$Output .= '<b>';
+            self::$Output .= self::$title;
+            if(!self::$cli)
+                self::$Output .= '</b>';
+        }
 
-		$this->Output .= "\n";
-		$this->Output .= "</pre>";
-		$this->Output .= "<style>pre{-moz-tab-size: 1; tab-size: 1;}</style>";
-	}
+        if(!self::$cli)
+            self::$Output .= '<small>';
+        self::$Output .= ' in call number: '.self::$call;
+        if(!self::$cli)
+            self::$Output .= '</small>';
+        self::$Output .= "\n";
+
+        // Trace
+        if(self::$trace && self::$trace[0]['file'] and self::$trace[0]['line']){
+            if(!self::$cli)
+                self::$Output .= '<small>';
+
+            $n = 1;
+            foreach(self::$trace as $trace){
+                self::$Output .= $trace['file'].':'.$trace['line'];
+
+                if($n > 2){
+                    break;
+                }
+
+                self::$Output .= "\n";
+
+                $n++;
+            }
+
+            if(!self::$cli)
+                self::$Output .= "</small>";
+            self::$Output .= "\n";
+        }
+
+        self::$Output .= "\n";
+
+        // Dump
+        foreach($vars as $key => $value){
+            if(@self::$labels[$key]){
+                if(!self::$cli)
+                    self::$Output .= '<b style="color:#7d7d7d">';
+                self::$Output .= self::$labels[$key]."\n";
+                if(!self::$cli)
+                    self::$Output .= "</b>";
+            }
+            self::$Output .= self::dump($value)."\n";
+        }
+
+        self::$Output .= "\n";
+        if(!self::$cli){
+            self::$Output .= "</pre>";
+            self::$Output .= "<style>pre{-moz-tab-size: 1; tab-size: 1;}</style>";
+        }
+    }
 }
